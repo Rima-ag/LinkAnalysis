@@ -5,10 +5,10 @@ import java.util.HashSet;
 
 public class TweetRank {
     private final Integer N = 465017;
-    private final Double revN = 1 / new Double(N);
-    private final Double epsilon = 1E-15;
-    private final Double beta = 0.8;
-    private final Double offset = (1 - beta) * revN;
+    private final Double REVN = 1.0 / N;
+    private final Double EPSILON = 1E-15;
+    private final Double BETA = 0.8;
+    private final Double OFFSET = (1 - BETA) * REVN;
 
     private boolean firstRead = true;
     private boolean stat = false;
@@ -20,9 +20,13 @@ public class TweetRank {
 
     private final String filename;
 
+    /***
+     * Runs the algorithm that will parse a file and give user insights on the data
+     * @param filename
+     */
     public TweetRank(String filename){
         this.filename = filename;
-        initR(r0, revN);
+        initR(r0, REVN);
         initDead();
         while(!stat) {
             initR(r1, 0.0);
@@ -37,20 +41,29 @@ public class TweetRank {
         result();
     }
 
+    /***
+     * Initialises arrays with a specific values
+     * @param r
+     * @param value
+     */
     private void initR(Double[] r, Double value){
-        for(int i = 0; i < N; ++i) {
+        for(int i = 0; i < N; ++i)
             r[i] = value;
-            //remove items from deadends on the first pass only
-            //sum up all the old rs of deadends, devide them by N and add to all r new
-            //multiply all the elements of r new with (beta + (1-beta)/N)
-        }
     }
 
+    /***
+     * Initialises the set of dead ends by considering that all the nodes in the network
+     * are dead ends
+     */
     private void initDead(){
         for(int i = 0; i < N; ++i)
             deadEnds.add(i);
     }
 
+    /***
+     * Parses the file, initialises the array r1 r1[first] += value * r0[second]
+     * handles the deletion of none dead end nodes from the set
+     */
     private void compute(){
         int first, second;
         Double value;
@@ -76,43 +89,66 @@ public class TweetRank {
         }
     }
 
+    /***
+     * Removes nodes that shouldn't be considered as dead ends from the set
+     * @param notEnd
+     */
     private void handleDeadEnd(Integer notEnd){
         deadEnds.remove(notEnd);
     }
 
-    // r1[first] = beta * (r1[first] + SDeadEndsRevN) + offset + [(1 - leak) * revN]
+
+    /***
+     * Adds values to the rank of each array to make sure it supports random transportation
+     * and handles dead ends
+     * r1[row] = beta * (r1[row] + SDeadEndsRevN) + offset + [(1 - leak) * revN]
+     */
     private void append(){
-        Double SDeadEndsRevN = sumDeadEnds() * revN;
+        Double SDeadEndsRevN = sumDeadEnds() * REVN;
         Double leak = 0.0;
 
+        //Leaking has been calculated here to enhance performance given that
+        //r1[i] is already in the cash
         for(int i = 0; i < N; ++i){
-            r1[i] = beta * (r1[i] + SDeadEndsRevN) + offset;
+            r1[i] = BETA * (r1[i] + SDeadEndsRevN) + OFFSET;
             leak += r1[i];
         }
 
         for(int i = 0; i < N; ++i){
-            r1[i] += (1 - leak) * revN;
+            r1[i] += (1 - leak) * REVN;
         }
     }
 
+    /***
+     * @return sum of the rank of dead ends
+     */
     private Double sumDeadEnds(){
         return deadEnds.stream().map(s -> r0[s]).mapToDouble(Double::doubleValue).sum();
     }
 
+    /***
+     * Determines if the array's values have converged or not
+     */
     private void isStat(){
         Double diff = 0.0;
         for(int i = 0; i < N; ++i)
             diff += Math.abs(r0[i] - r1[i]);
-        if(diff < epsilon)
+        if(diff < EPSILON)
             stat = true;
     }
 
+    /***
+     * swaps the arrays r0 and r1
+     */
     private void swap(){
         tmp = r0;
         r0 = r1;
         r1 = tmp;
     }
 
+    /***
+     * Draws insights whilst the algorithm's execution
+     */
     private void result(){
         Double sum = 0.;
         Double min = r1[0];
@@ -138,7 +174,7 @@ public class TweetRank {
     }
 
     public static void main(String[] args){
-        new TweetRank("out2");
+        new TweetRank("in");
     }
 
 }
